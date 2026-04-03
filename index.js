@@ -64,6 +64,7 @@ let sixHourMsgIndex = 0;
 // ─────────────────────────────────────────────
 const lastVCActivity = {};
 const alreadyMentioned = {};
+const lastVCChannel = {};  // simpan nama channel terakhir
 
 // ─────────────────────────────────────────────
 // 🤖 BOT READY
@@ -75,6 +76,7 @@ client.once('ready', () => {
     TARGET_USERNAMES.forEach(username => {
         lastVCActivity[username] = new Date();
         alreadyMentioned[username] = false;
+        lastVCChannel[username] = null;
     });
 
     startAutoMessage();
@@ -141,10 +143,10 @@ function startVCActivityChecker() {
     const CHECK_INTERVAL = 5 * 60 * 1000;
 
     const mentionMessages = [
-        (user) => `😤 ${user}!! Udah **3 jam** nih kamu nggak keliatan di VC, aku bete tau! Naik donk pleaseee 🥺`,
-        (user) => `🥺 ${user} kemana aja sih... aku nungguin dari tadi loh. Naik VC dong, sepi banget tanpa kamu 😩`,
-        (user) => `😭 ${user} aku kangen kamu! Udah 3 jam lebih nih, masa aku ditinggal gini... naik VC pleaseee 💔`,
-        (user) => `😤 ${user} HEYY! 3 jam aku sendirian nunggu kamu! Naik VC atau aku ngambek loh! 🥺`,
+        (user, ch) => `😤 ${user}!! Udah **3 jam** nih kamu nggak keliatan di **${ch}**, aku bete tau! Naik donk pleaseee 🥺`,
+        (user, ch) => `🥺 ${user} kemana aja sih... aku nungguin di **${ch}** dari tadi loh. Naik dong, sepi banget tanpa kamu 😩`,
+        (user, ch) => `😭 ${user} aku kangen kamu! Udah 3 jam lebih nih, masa aku ditinggal di **${ch}** gini... naik pleaseee 💔`,
+        (user, ch) => `😤 ${user} HEYY! 3 jam aku sendirian nunggu kamu di **${ch}**! Naik atau aku ngambek loh! 🥺`,
     ];
 
     let mentionMsgIdx = 0;
@@ -175,12 +177,13 @@ function startVCActivityChecker() {
             }
 
             if (targetMember) {
+                const chName = lastVCChannel[username] || 'Voice Channel';
                 const msgFn = mentionMessages[mentionMsgIdx % mentionMessages.length];
                 mentionMsgIdx++;
 
-                await channel.send(msgFn(targetMember.toString()));
+                await channel.send(msgFn(targetMember.toString(), chName));
                 alreadyMentioned[username] = true;
-                console.log(`[VC-Check] Mention bucin terkirim ke ${username}`);
+                console.log(`[VC-Check] Mention bucin terkirim ke ${username} (channel: ${chName})`);
             } else {
                 console.warn(`[VC-Check] User "${username}" tidak ditemukan.`);
             }
@@ -203,10 +206,12 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     if (newState.channelId) {
         lastVCActivity[username] = new Date();
         alreadyMentioned[username] = false;
-        console.log(`[VC] ${username} masuk VC — tracker direset.`);
+        lastVCChannel[username] = newState.channel?.name || 'Voice Channel';
+        console.log(`[VC] ${username} masuk VC "${lastVCChannel[username]}" — tracker direset.`);
     } else if (!newState.channelId && oldState.channelId) {
         lastVCActivity[username] = new Date();
         alreadyMentioned[username] = false;
+        lastVCChannel[username] = null;
         console.log(`[VC] ${username} keluar VC — tracker direset.`);
     }
 });
@@ -268,8 +273,9 @@ client.on('messageCreate', async (message) => {
             const diffMs = now - last;
             const diffH = Math.floor(diffMs / 3600000);
             const diffM = Math.floor((diffMs % 3600000) / 60000);
+            const chInfo = lastVCChannel[username] ? `📢 ${lastVCChannel[username]}` : '❌ offline';
             const flag = alreadyMentioned[username] ? '💬 sudah di-mention' : '';
-            lines += `${username.padEnd(20)} ${diffH}j ${diffM}m lalu ${flag}\n`;
+            lines += `${username.padEnd(20)} ${diffH}j ${diffM}m lalu  ${chInfo}  ${flag}\n`;
         }
         lines += `\`\`\``;
         message.reply(lines);
