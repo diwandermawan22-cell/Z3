@@ -25,6 +25,7 @@ const TARGET_USERNAMES = [
     'rexzz.022',
     'kenz230900',
     'ryunaaa0650',
+    'meyvelly',
     'z3r0s3s',
 ];
 
