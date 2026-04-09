@@ -1,7 +1,6 @@
-# Gunakan Node.js 20 agar sesuai dengan engine di package.json
 FROM node:20-slim
 
-# Install alat masak (compiler) dan ffmpeg untuk audio
+# Install library sistem untuk audio dan build
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     python3 \
@@ -12,14 +11,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy package.json dulu biar cache cepat
 COPY package*.json ./
-
-# Install semua library
+# Menggunakan --include=dev karena beberapa library audio butuh build tool
 RUN npm install
 
-# Copy sisa file bot
 COPY . .
 
-# Jalankan botnya
 CMD ["node", "index.js"]
