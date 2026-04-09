@@ -1,7 +1,7 @@
 {
-  "name": "z3-voice-bot",
+  "name": "z3-studios-bot",
   "version": "1.0.0",
-  "description": "Bot Discord Voice Standby untuk Z3 Studios",
+  "description": "Bot Gesrek Z3 Studios",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,9 +10,10 @@
     "discord.js": "^14.14.1",
     "@discordjs/voice": "^0.16.1",
     "libsodium-wrappers": "^0.7.13",
-    "prism-media": "^1.3.5"
+    "@discordjs/opus": "^0.9.0",
+    "ffmpeg-static": "^5.2.0"
   },
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   }
 }
