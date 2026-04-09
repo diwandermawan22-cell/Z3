@@ -1,18 +1,25 @@
-# Pakai Node.js versi 18
-FROM node:18-slim
+# Gunakan Node.js 20 agar sesuai dengan engine di package.json
+FROM node:20-slim
 
-# Install FFmpeg (Tanpa ini bot GAK BISA join call)
-RUN apt-get update && apt-get install -y ffmpeg
+# Install alat masak (compiler) dan ffmpeg untuk audio
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    python3 \
+    make \
+    g++ \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set folder kerja
 WORKDIR /app
 
-# Copy daftar library dan instal
+# Copy package.json dulu biar cache cepat
 COPY package*.json ./
+
+# Install semua library
 RUN npm install
 
-# Copy semua file ke dalam server
+# Copy sisa file bot
 COPY . .
 
 # Jalankan botnya
-CMD ["npm", "start"]
+CMD ["node", "index.js"]
