@@ -1,13 +1,10 @@
 const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
-const { joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
+const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers,
     ],
 });
 
@@ -17,25 +14,80 @@ const S1_CHAT = process.env.S1_CHAT_ID;
 const S2_GUILD = process.env.S2_GUILD_ID;
 const S2_CHAT = process.env.S2_CHAT_ID;
 
-const globalVoiceTracker = new Map();
+const userTrackers = new Map();
 
-const quotes = [
-    "😏 @everyone Jam segini biasanya janda lagi kesepian, duda lagi melamun. Daripada galau mending naik VC sini!",
-    "🥴 Waduh.. perawan di server ini kok pada diem-diem bae? Takut jatuh cinta ya? Xixi.. @everyone",
-    "🔥 Peringatan! Tingkat kegantengan perjaka di sini sudah melampaui batas. Segera laporan ke VC! 😏",
-    "🌚 @everyone Dingin-dingin gini enaknya dengerin candaan kalian di VC biar anget! 😜",
-    "💦 Jangan biarkan malammu basah karena air mata galau, mending seru-seruan bareng di Z3 Studios! 🔥",
-    "🍑 @everyone Info dong, yang janda sebelah mana? Mau aku kasih perhatian lebih nih.. Hehe..",
-    "💌 Hey kamu @everyone. Iya kamu. Jangan cuma pinter bikin aku kangen, pinter jaga kesehatan juga ya sayang.. 💙",
-    "🫶 Status boleh single, tapi gaya harus tetep elit. Sini kumpul di VC!",
-    "🥺 Aku tadi liat pelangi, tapi kok nggak seindah pas liat kalian kompak di VC ya? @everyone",
-    "💖 Di mata aku, kalian itu bukan cuma member. Kalian itu masa depan yang mau aku jagain terus. ✨",
-    "💔 @everyone Buat yang lagi galau, janda dan duda di server ini masih banyak yang lebih oke. 🔥",
-    "☕ Seduh kopimu, lupakan dia yang cuma kasih harapan palsu. Z3 Studios lebih asyik! @everyone",
-    "🌟 Sadar nggak sih kalian itu berharga? Semangat kawan! 💙",
-    "🚀 Gaspolll! Semangat buat yang lagi kerja atau lagi grinding. ✨",
-    "😏 Perjaka jangan terlalu kaku, janda jangan terlalu agresif, yang penting di VC kita semua asyik! @everyone"
+// --- MEGA DATABASE ANTI-BOSEN ---
+
+const dbQuotes = [
+    "🍑 @everyone Info janda dong, yang modelan mandiri tapi butuh sandaran di VOICE server ini ada nggak? 😏",
+    "🔥 Perjaka server ini jangan cuma jago push rank, jago manjain telinga orang di VOICE dong! 🥴",
+    "💌 Status boleh duda, tapi kalau soal perhatian aku nggak kalah sama yang muda. Sini naik VOICE! ✨",
+    "🥺 Gadis-gadis cantik di sini pada ke mana? Apa perlu aku jemput satu-satu biar mau open mic di VOICE?",
+    "😏 Perawan jangan malu-malu kucing, janda jangan malu-maluin. Sini kumpul kita ngeteh bareng di VOICE!",
+    "🌹 Mencintai kamu itu gampang, yang susah itu liat kamu jarang naik VOICE. Aku kangen tau! 💖",
+    "☕ Kopi pahit aja bisa manis kalau diminum sambil denger suara merdu kamu di VOICE tongkrongan kita.",
+    "🌚 Malam minggu buat janda/duda galau mending di VOICE aja, daripada stalking mantan terus baper..",
+    "🌟 Di server ini kita nggak mandang status, mau kamu perjaka atau duda, yang penting asyik naik VOICE bareng!",
+    "💔 Buat yang lagi patah hati, mending naik VOICE. Siapa tau dapet janda/gadis baru di sini. Gas! 🔥",
+    "🍃 Angin malam ini dingin, tapi lebih dingin lagi kalau VOICE server ini tanpa suara kalian. @everyone",
+    "🔥 Peringatan! Tingkat kegantengan perjaka di sini sudah melampaui batas. Segera laporan ke VOICE! 😏",
+    "🥨 Janda merapat, duda mendekat, yang single jangan cuma liat. VOICE udah rame nih! @everyone",
+    "🎭 Hidup itu penuh sandiwara, tapi kalau rasa sayang aku ke kalian pas di VOICE itu nyata. ✨",
+    "🚀 Gaspolll! Semangat buat yang lagi kerja atau lagi grinding. Sambil open mic di VOICE biar gak sepi! 💙"
 ];
+
+const dbMakan = {
+    pagi: [
+        "🍳 @everyone Pagi sayang! Sarapan dulu ya, biar kuat cari jodoh di server ini! 🥛",
+        "🥪 @everyone Pagi kesayangan! Sarapan dulu gih, janda sama perawan di sini butuh kamu yang sehat! ☕",
+        "🥐 @everyone Awali harimu dengan sarapan, bukan dengan harapan palsu. Semangat ya sayang! 🌻"
+    ],
+    siang: [
+        "🍛 @everyone Makan siang dulu sayang! Biar kuat VOICE-an nanti. Jangan sampai telat makan ya! 🍗",
+        "🍱 @everyone Udah jam 12:30 nih, perjaka sama duda harus tetep kuat fisiknya. Yuk makan dulu! 🍱",
+        "🍲 @everyone Sayang, istirahat dulu gih. Makan siang yang kenyang biar gak gampang sakit hati liat dia sama yang lain.. 🥺"
+    ],
+    malam: [
+        "🍝 @everyone Waktunya Makan Malam! Makan yang banyak biar nggak gampang sakit hati.. 🥺",
+        "🍕 @everyone Udah malam loh, jangan lupa makan. Makan malam bareng keluarga atau gebetan baru di server ini? 😏",
+        "🍛 @everyone Perut kenyang, hati tenang. Yuk makan malam dulu sebelum lanjut begadang di VOICE! 🌙"
+    ]
+};
+
+const dbSholat = [
+    "🕌 @everyone **Waktunya {nama}!** Berhenti dulu VOICE-annya ya sayang, lapor ke Yang Maha Kuasa dulu. Nanti lanjut lagi ya 🥺💙",
+    "🕌 @everyone **Adzan {nama} nih!** Yuk istirahat sejenak, ibadah dulu biar hubungan kita diberkahi. Aku nungguin di sini ya.. 🙏✨",
+    "🕋 @everyone Sayang, panggilan {nama} sudah berkumandang. Yuk sholat dulu, minta doa biar dapet janda/duda idaman di server ini! 🤲"
+];
+
+const dbNgambek = {
+    stage1: [
+        "🥺 {user}, baru sejam turun kok udah kangen ya? Naik VOICE lagi dong sayang.. 💙",
+        "👀 Kok sepi? {user} baru sejam gak ada di VOICE aku udah ngerasa kehilangan.. 💔",
+        "💌 {user}, satu jam tanpamu bagai satu tahun tanpa cinta. Sini naik VOICE sebentar aja.. 🥺"
+    ],
+    stage2: [
+        "😤 {user}, kok belum naik VOICE juga? Udah 2 jam loh. Lagi asyik sama yang lain ya di server sebelah? 💔",
+        "🤨 2 jam berlalu tanpa suara kamu {user}.. Kamu beneran tega biarin aku nunggu sendirian?",
+        "💦 {user}, jangan biarkan malamku basah karena air mata galau nungguin kamu naik VOICE! 2 jam loh ini! 😡"
+    ],
+    stage3: [
+        "😭 {user} JAHAT! Udah 3 jam aku nungguin kamu di VOICE tapi nggak muncul. Aku ngambek beneran nih! 💨",
+        "😡 Fix, {user} udah gak sayang lagi sama aku & server ini. 3 jam aku dicuekin. Tega banget!",
+        "💔 {user}, 3 jam itu lama loh. Kayaknya kamu emang udah nggak butuh aku lagi ya? Oke fine! 😤"
+    ],
+    stage12: [
+        "🥀 {user}, beneran ya seharian ini kamu gak ada kabar? Udah 12 jam lebih gak naik VOICE... Putus aja kita! 🥺💔",
+        "🥺💔 12 jam tanpa kamu {user}.. Aku anggep kamu udah lupa sama kenangan kita di VOICE. Selamat tinggal..",
+        "💀 {user}, 12 jam menghilang? Fix kamu udah punya simpenan baru ya? Jangan cari aku lagi kalau nanti kangen! 💨"
+    ]
+};
+
+// --- FUNGSI CORE ---
+
+function pickRandom(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
 
 function nowWIB() {
     const now = new Date();
@@ -53,101 +105,81 @@ async function broadcast(text) {
     }
 }
 
-client.once('ready', () => {
-    client.user.setActivity('jagain janda & perawan 🥺', { type: ActivityType.Watching });
+function setInactivityWarning(member, guildId, stage) {
+    let delay = (stage === 12) ? 9 * 3600000 : 1 * 3600000; 
+    
+    const timer = setTimeout(async () => {
+        let targetChId = (guildId === S1_GUILD) ? S1_CHAT : (guildId === S2_GUILD ? S2_CHAT : null);
+        if (targetChId) {
+            const logCh = await client.channels.fetch(targetChId).catch(() => null);
+            if (logCh) {
+                const userTag = member.user.toString();
+                let message = "";
+                if (stage === 1) message = pickRandom(dbNgambek.stage1).replace("{user}", userTag);
+                else if (stage === 2) message = pickRandom(dbNgambek.stage2).replace("{user}", userTag);
+                else if (stage === 3) message = pickRandom(dbNgambek.stage3).replace("{user}", userTag);
+                else if (stage === 12) message = pickRandom(dbNgambek.stage12).replace("{user}", userTag);
+                
+                await logCh.send(message);
+            }
+        }
 
+        if (stage === 1) setInactivityWarning(member, guildId, 2);
+        else if (stage === 2) setInactivityWarning(member, guildId, 3);
+        else if (stage === 3) setInactivityWarning(member, guildId, 12);
+    }, delay);
+
+    userTrackers.set(member.id, { timer, stage });
+}
+
+// --- EVENT HANDLERS ---
+
+client.once('ready', () => {
+    console.log(`Bot Ayank ${client.user.tag} siap menjaga VOICE server ini!`);
+    client.user.setActivity('Bikin Basah Janda duda Perjaka gadis', { type: ActivityType.Watching });
+
+    // Quotes Random (Setiap 2 jam)
+    setInterval(() => {
+        broadcast(pickRandom(dbQuotes));
+    }, 2 * 3600000);
+
+    // Checker Jam Makan & Sholat
     setInterval(async () => {
         const now = nowWIB();
         const h = now.getHours();
         const m = now.getMinutes();
 
-        if (h === 7 && m === 30) await broadcast("🍳 @everyone Pagi sayang! Jangan lupa **Sarapan** ya. Semangat cari jodohnya! 🥛");
-        if (h === 12 && m === 30) await broadcast("🍛 @everyone Makan siang dulu sayang! Biar kuat VC-an nanti. 🍗");
-        if (h === 19 && m === 0) await broadcast("🍝 @everyone Waktunya Makan Malam! Makan yang banyak biar nggak gampang sakit hati.. 🥺");
-        
-        const sholat = { "Subuh": [4, 35], "Dzuhur": [12, 5], "Ashar": [15, 20], "Maghrib": [18, 5], "Isya": [19, 20] };
-        for (const [name, time] of Object.entries(sholat)) {
-            if (h === time[0] && m === time[1]) {
-                await broadcast(`🕌 **Waktunya ${name}!**\nYuk istirahat sejenak, sholat dulu sayang~ nanti lanjut lagi ya 🥺💙 @everyone`);
+        // Jadwal Makan
+        if (h === 7 && m === 30) await broadcast(pickRandom(dbMakan.pagi));
+        if (h === 12 && m === 30) await broadcast(pickRandom(dbMakan.siang));
+        if (h === 19 && m === 15) await broadcast(pickRandom(dbMakan.malam));
+
+        // Jadwal Sholat
+        const jadwalSholat = { "Subuh": [4, 35], "Dzuhur": [12, 5], "Ashar": [15, 25], "Maghrib": [18, 5], "Isya": [19, 20] };
+        for (const [nama, waktu] of Object.entries(jadwalSholat)) {
+            if (h === waktu[0] && m === waktu[1]) {
+                const msg = pickRandom(dbSholat).replace("{nama}", nama);
+                await broadcast(msg);
             }
         }
     }, 60000);
-
-    function startRandomQuotes() {
-        const randomTime = Math.floor(Math.random() * (3 * 3600000 - 1 * 3600000 + 1)) + 1 * 3600000;
-        setTimeout(() => {
-            const pick = quotes[Math.floor(Math.random() * quotes.length)];
-            broadcast(pick);
-            startRandomQuotes();
-        }, randomTime);
-    }
-    startRandomQuotes();
 });
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const member = newState.member;
     if (!member || member.user.bot) return;
 
+    // Join VOICE: Matikan tracker ngambek
     if (!oldState.channelId && newState.channelId) {
-        globalVoiceTracker.set(member.id, { startTime: new Date() });
+        if (userTrackers.has(member.id)) {
+            clearTimeout(userTrackers.get(member.id).timer);
+            userTrackers.delete(member.id);
+            console.log(`[Tracker] ${member.user.username} balik, timer dihapus.`);
+        }
     } 
+    // Keluar VOICE: Mulai stage 1
     else if (oldState.channelId && !newState.channelId) {
-        const data = globalVoiceTracker.get(member.id);
-        if (data) {
-            const duration = new Date() - data.startTime;
-            if (duration >= 3 * 60 * 60 * 1000) { 
-                const h = Math.floor(duration / 3600000);
-                const m = Math.floor((duration % 3600000) / 60000);
-                let targetChId = (oldState.guild.id === S1_GUILD) ? S1_CHAT : (oldState.guild.id === S2_GUILD ? S2_CHAT : null);
-                if (targetChId) {
-                    const logCh = await client.channels.fetch(targetChId).catch(() => null);
-                    if (logCh) logCh.send(`🚨 **Maraton Selesai!**\n${member.user.toString()} turun setelah **${h} jam ${m} menit**. Kuat banget tenaganya! 🔥 @everyone`);
-                }
-            }
-            globalVoiceTracker.delete(member.id);
-        }
-    }
-});
-
-client.on('messageCreate', async (msg) => {
-    if (msg.author.bot) return;
-
-    if (msg.content === '!join') {
-        const voiceChannel = msg.member.voice.channel;
-        if (voiceChannel) {
-            try {
-                const connection = joinVoiceChannel({
-                    channelId: voiceChannel.id,
-                    guildId: voiceChannel.guild.id,
-                    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-                    selfDeaf: false,
-                    selfMute: true,
-                });
-
-                connection.on(VoiceConnectionStatus.Ready, () => {
-                    msg.reply(`🥺 Yay! Aku udah masuk di **${voiceChannel.name}**~ nemenin kalian ya!`);
-                });
-
-                connection.on('error', (error) => {
-                    console.error(error);
-                    msg.reply('💔 Aduh, aku gagal join VC-nya. Cek permission aku dong!');
-                });
-            } catch (err) {
-                msg.reply('😩 Ada error pas aku mau masuk VC...');
-            }
-        } else {
-            msg.reply('😤 Kamu masuk VC dulu dong baru panggil aku! 🥺');
-        }
-    }
-
-    if (msg.content === '!leave') {
-        const connection = getVoiceConnection(msg.guild.id);
-        if (connection) {
-            connection.destroy();
-            msg.reply('😔 Aku pamit dulu ya, jangan lupain aku... 💙');
-        } else {
-            msg.reply('Aku lagi nggak di VC kok sayang 🥺');
-        }
+        setInactivityWarning(member, oldState.guild.id, 1);
     }
 });
 
