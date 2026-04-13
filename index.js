@@ -1,10 +1,13 @@
 const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
-const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
+const { joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.MessageContent, 
+        GatewayIntentBits.GuildMembers,
     ],
 });
 
@@ -16,7 +19,7 @@ const S2_CHAT = process.env.S2_CHAT_ID;
 
 const userTrackers = new Map();
 
-// --- MEGA DATABASE ANTI-BOSEN ---
+// --- DATABASE PESAN RANDOM (ANTI-BOSEN) ---
 
 const dbQuotes = [
     "🍑 @everyone Info janda dong, yang modelan mandiri tapi butuh sandaran di VOICE server ini ada nggak? 😏",
@@ -30,10 +33,7 @@ const dbQuotes = [
     "🌟 Di server ini kita nggak mandang status, mau kamu perjaka atau duda, yang penting asyik naik VOICE bareng!",
     "💔 Buat yang lagi patah hati, mending naik VOICE. Siapa tau dapet janda/gadis baru di sini. Gas! 🔥",
     "🍃 Angin malam ini dingin, tapi lebih dingin lagi kalau VOICE server ini tanpa suara kalian. @everyone",
-    "🔥 Peringatan! Tingkat kegantengan perjaka di sini sudah melampaui batas. Segera laporan ke VOICE! 😏",
-    "🥨 Janda merapat, duda mendekat, yang single jangan cuma liat. VOICE udah rame nih! @everyone",
-    "🎭 Hidup itu penuh sandiwara, tapi kalau rasa sayang aku ke kalian pas di VOICE itu nyata. ✨",
-    "🚀 Gaspolll! Semangat buat yang lagi kerja atau lagi grinding. Sambil open mic di VOICE biar gak sepi! 💙"
+    "🎭 Hidup itu penuh sandiwara, tapi kalau rasa sayang aku ke kalian pas di VOICE itu nyata. ✨"
 ];
 
 const dbMakan = {
@@ -78,8 +78,7 @@ const dbNgambek = {
     ],
     stage12: [
         "🥀 {user}, beneran ya seharian ini kamu gak ada kabar? Udah 12 jam lebih gak naik VOICE... Putus aja kita! 🥺💔",
-        "🥺💔 12 jam tanpa kamu {user}.. Aku anggep kamu udah lupa sama kenangan kita di VOICE. Selamat tinggal..",
-        "💀 {user}, 12 jam menghilang? Fix kamu udah punya simpenan baru ya? Jangan cari aku lagi kalau nanti kangen! 💨"
+        "🥺💔 12 jam tanpa kamu {user}.. Aku anggep kamu udah lupa sama kenangan kita di VOICE. Selamat tinggal.."
     ]
 };
 
@@ -123,7 +122,6 @@ function setInactivityWarning(member, guildId, stage) {
                 await logCh.send(message);
             }
         }
-
         if (stage === 1) setInactivityWarning(member, guildId, 2);
         else if (stage === 2) setInactivityWarning(member, guildId, 3);
         else if (stage === 3) setInactivityWarning(member, guildId, 12);
@@ -132,29 +130,23 @@ function setInactivityWarning(member, guildId, stage) {
     userTrackers.set(member.id, { timer, stage });
 }
 
-// --- EVENT HANDLERS ---
+// --- EVENT READY ---
 
 client.once('ready', () => {
-    console.log(`Bot Ayank ${client.user.tag} siap menjaga VOICE server ini!`);
-    client.user.setActivity('Bikin Basah Janda duda Perjaka gadis', { type: ActivityType.Watching });
+    console.log(`Bot Ayank ${client.user.tag} Online!`);
+    client.user.setActivity('jagain janda & perawan 🥺', { type: ActivityType.Watching });
 
-    // Quotes Random (Setiap 2 jam)
-    setInterval(() => {
-        broadcast(pickRandom(dbQuotes));
-    }, 2 * 3600000);
+    setInterval(() => broadcast(pickRandom(dbQuotes)), 2 * 3600000);
 
-    // Checker Jam Makan & Sholat
     setInterval(async () => {
         const now = nowWIB();
         const h = now.getHours();
         const m = now.getMinutes();
 
-        // Jadwal Makan
         if (h === 7 && m === 30) await broadcast(pickRandom(dbMakan.pagi));
         if (h === 12 && m === 30) await broadcast(pickRandom(dbMakan.siang));
         if (h === 19 && m === 15) await broadcast(pickRandom(dbMakan.malam));
 
-        // Jadwal Sholat
         const jadwalSholat = { "Subuh": [4, 35], "Dzuhur": [12, 5], "Ashar": [15, 25], "Maghrib": [18, 5], "Isya": [19, 20] };
         for (const [nama, waktu] of Object.entries(jadwalSholat)) {
             if (h === waktu[0] && m === waktu[1]) {
@@ -165,20 +157,57 @@ client.once('ready', () => {
     }, 60000);
 });
 
+// --- COMMAND !JOIN & !LEAVE ---
+
+client.on('messageCreate', async (msg) => {
+    if (msg.author.bot) return;
+
+    if (msg.content === '!join') {
+        const voiceChannel = msg.member.voice.channel;
+        if (voiceChannel) {
+            try {
+                const connection = joinVoiceChannel({
+                    channelId: voiceChannel.id,
+                    guildId: voiceChannel.guild.id,
+                    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+                    selfDeaf: false,
+                    selfMute: true,
+                });
+
+                connection.on(VoiceConnectionStatus.Ready, () => {
+                    msg.reply(`🥺 Yay! Aku udah masuk di VOICE **${voiceChannel.name}**~ Nemenin kalian janda, duda, & perjaka elit ya!`);
+                });
+            } catch (err) {
+                msg.reply('😩 Aduh sayang, aku gagal join VOICE-nya. Cek permission aku dong!');
+            }
+        } else {
+            msg.reply('😤 Kamu masuk VOICE dulu dong baru panggil aku! Masa aku sendirian di sana? 🥺');
+        }
+    }
+
+    if (msg.content === '!leave') {
+        const connection = getVoiceConnection(msg.guild.id);
+        if (connection) {
+            connection.destroy();
+            msg.reply('😔 Aku pamit dari VOICE dulu ya, jangan lupain aku... 💙');
+        } else {
+            msg.reply('Aku lagi nggak di VOICE kok sayang, kangen ya? 🥺');
+        }
+    }
+});
+
+// --- TRACKER VOICE STATE ---
+
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const member = newState.member;
     if (!member || member.user.bot) return;
 
-    // Join VOICE: Matikan tracker ngambek
     if (!oldState.channelId && newState.channelId) {
         if (userTrackers.has(member.id)) {
             clearTimeout(userTrackers.get(member.id).timer);
             userTrackers.delete(member.id);
-            console.log(`[Tracker] ${member.user.username} balik, timer dihapus.`);
         }
-    } 
-    // Keluar VOICE: Mulai stage 1
-    else if (oldState.channelId && !newState.channelId) {
+    } else if (oldState.channelId && !newState.channelId) {
         setInactivityWarning(member, oldState.guild.id, 1);
     }
 });
