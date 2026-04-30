@@ -17,72 +17,33 @@ const S1_CHAT = process.env.S1_CHAT_ID;
 const S2_GUILD = process.env.S2_GUILD_ID;
 const S2_CHAT = process.env.S2_CHAT_ID;
 
-const userTrackers = new Map();
-
-// --- DATABASE PESAN RANDOM (ANTI-BOSEN) ---
+// --- DATABASE PESAN (BAHASA LEBIH OKE) ---
 
 const dbQuotes = [
-    "🍑 @everyone Info janda dong, yang modelan mandiri tapi butuh sandaran di VOICE server ini ada nggak? 😏",
-    "🔥 Perjaka server ini jangan cuma jago push rank, jago manjain telinga orang di VOICE dong! 🥴",
-    "💌 Status boleh duda, tapi kalau soal perhatian aku nggak kalah sama yang muda. Sini naik VOICE! ✨",
-    "🥺 Gadis-gadis cantik di sini pada ke mana? Apa perlu aku jemput satu-satu biar mau open mic di VOICE?",
-    "😏 Perawan jangan malu-malu kucing, janda jangan malu-maluin. Sini kumpul kita ngeteh bareng di VOICE!",
-    "🌹 Mencintai kamu itu gampang, yang susah itu liat kamu jarang naik VOICE. Aku kangen tau! 💖",
-    "☕ Kopi pahit aja bisa manis kalau diminum sambil denger suara merdu kamu di VOICE tongkrongan kita.",
-    "🌚 Malam minggu buat janda/duda galau mending di VOICE aja, daripada stalking mantan terus baper..",
-    "🌟 Di server ini kita nggak mandang status, mau kamu perjaka atau duda, yang penting asyik naik VOICE bareng!",
-    "💔 Buat yang lagi patah hati, mending naik VOICE. Siapa tau dapet janda/gadis baru di sini. Gas! 🔥",
-    "🍃 Angin malam ini dingin, tapi lebih dingin lagi kalau VOICE server ini tanpa suara kalian. @everyone",
-    "🎭 Hidup itu penuh sandiwara, tapi kalau rasa sayang aku ke kalian pas di VOICE itu nyata. ✨"
+    "📢 Yuk, ramaikan Voice Channel! Ngobrol santai bareng yang lain di sini. ✨",
+    "🔥 Room Voice lagi sepi nih, masuk yuk biar makin seru hari kita! 🥂",
+    "💬 Daripada ngetik terus, mending Open Mic di VC. Lebih dapet feel-nya!",
+    "🎵 Ada yang mau dengerin musik bareng di VC? Sini merapat!",
+    "🌟 Kebersamaan itu mahal harganya, yuk luangkan waktu di Voice Channel sebentar.",
+    "☕ Kopi sudah siap, tinggal nunggu kalian naik ke VC nih buat nemenin ngobrol."
 ];
 
 const dbMakan = {
-    pagi: [
-        "🍳 @everyone Pagi sayang! Sarapan dulu ya, biar kuat cari jodoh di server ini! 🥛",
-        "🥪 @everyone Pagi kesayangan! Sarapan dulu gih, janda sama perawan di sini butuh kamu yang sehat! ☕",
-        "🥐 @everyone Awali harimu dengan sarapan, bukan dengan harapan palsu. Semangat ya sayang! 🌻"
-    ],
-    siang: [
-        "🍛 @everyone Makan siang dulu sayang! Biar kuat VOICE-an nanti. Jangan sampai telat makan ya! 🍗",
-        "🍱 @everyone Udah jam 12:30 nih, perjaka sama duda harus tetep kuat fisiknya. Yuk makan dulu! 🍱",
-        "🍲 @everyone Sayang, istirahat dulu gih. Makan siang yang kenyang biar gak gampang sakit hati liat dia sama yang lain.. 🥺"
-    ],
-    malam: [
-        "🍝 @everyone Waktunya Makan Malam! Makan yang banyak biar nggak gampang sakit hati.. 🥺",
-        "🍕 @everyone Udah malam loh, jangan lupa makan. Makan malam bareng keluarga atau gebetan baru di server ini? 😏",
-        "🍛 @everyone Perut kenyang, hati tenang. Yuk makan malam dulu sebelum lanjut begadang di VOICE! 🌙"
-    ]
+    pagi: ["🍳 Selamat pagi! Jangan lupa sarapan supaya tetap fokus berkegiatan ya! ✨"],
+    siang: ["🍲 Sudah jam makan siang nih, istirahat sejenak dan jangan lupa makan ya semuanya!"],
+    malam: ["🍝 Selamat malam! Waktunya makan malam dan santai sejenak setelah seharian sibuk."]
 };
 
-const dbSholat = [
-    "🕌 @everyone **Waktunya {nama}!** Berhenti dulu VOICE-annya ya sayang, lapor ke Yang Maha Kuasa dulu. Nanti lanjut lagi ya 🥺💙",
-    "🕌 @everyone **Adzan {nama} nih!** Yuk istirahat sejenak, ibadah dulu biar hubungan kita diberkahi. Aku nungguin di sini ya.. 🙏✨",
-    "🕋 @everyone Sayang, panggilan {nama} sudah berkumandang. Yuk sholat dulu, minta doa biar dapet janda/duda idaman di server ini! 🤲"
+const dbSholat = "🕌 **Waktunya Sholat {nama}!** Mari kita tunaikan kewajiban terlebih dahulu, istirahat sejenak dari aktivitas ya. 🙏";
+
+const dbTagVC = [
+    "🥺 {user}, kok belum kelihatan di VC? Yuk gabung bareng kita!",
+    "🧐 {user}, mumpung rame nih, ditungguin temen-temen di Voice Channel ya!",
+    "📢 Panggilan untuk {user}, mampir ke VC bentar yuk, jangan absen terus..",
+    "✨ {user}, harimu bakal lebih seru kalau gabung ngobrol di VC sekarang!"
 ];
 
-const dbNgambek = {
-    stage1: [
-        "🥺 {user}, baru sejam turun kok udah kangen ya? Naik VOICE lagi dong sayang.. 💙",
-        "👀 Kok sepi? {user} baru sejam gak ada di VOICE aku udah ngerasa kehilangan.. 💔",
-        "💌 {user}, satu jam tanpamu bagai satu tahun tanpa cinta. Sini naik VOICE sebentar aja.. 🥺"
-    ],
-    stage2: [
-        "😤 {user}, kok belum naik VOICE juga? Udah 2 jam loh. Lagi asyik sama yang lain ya di server sebelah? 💔",
-        "🤨 2 jam berlalu tanpa suara kamu {user}.. Kamu beneran tega biarin aku nunggu sendirian?",
-        "💦 {user}, jangan biarkan malamku basah karena air mata galau nungguin kamu naik VOICE! 2 jam loh ini! 😡"
-    ],
-    stage3: [
-        "😭 {user} JAHAT! Udah 3 jam aku nungguin kamu di VOICE tapi nggak muncul. Aku ngambek beneran nih! 💨",
-        "😡 Fix, {user} udah gak sayang lagi sama aku & server ini. 3 jam aku dicuekin. Tega banget!",
-        "💔 {user}, 3 jam itu lama loh. Kayaknya kamu emang udah nggak butuh aku lagi ya? Oke fine! 😤"
-    ],
-    stage12: [
-        "🥀 {user}, beneran ya seharian ini kamu gak ada kabar? Udah 12 jam lebih gak naik VOICE... Putus aja kita! 🥺💔",
-        "🥺💔 12 jam tanpa kamu {user}.. Aku anggep kamu udah lupa sama kenangan kita di VOICE. Selamat tinggal.."
-    ]
-};
-
-// --- FUNGSI CORE ---
+// --- FUNGSI HELPER ---
 
 function pickRandom(array) {
     return array[Math.floor(Math.random() * array.length)];
@@ -104,84 +65,97 @@ async function broadcast(text) {
     }
 }
 
-function setInactivityWarning(member, guildId, stage) {
-    let delay = (stage === 12) ? 9 * 3600000 : 1 * 3600000; 
-    
-    const timer = setTimeout(async () => {
-        let targetChId = (guildId === S1_GUILD) ? S1_CHAT : (guildId === S2_GUILD ? S2_CHAT : null);
-        if (targetChId) {
-            const logCh = await client.channels.fetch(targetChId).catch(() => null);
-            if (logCh) {
-                const userTag = member.user.toString();
-                let message = "";
-                if (stage === 1) message = pickRandom(dbNgambek.stage1).replace("{user}", userTag);
-                else if (stage === 2) message = pickRandom(dbNgambek.stage2).replace("{user}", userTag);
-                else if (stage === 3) message = pickRandom(dbNgambek.stage3).replace("{user}", userTag);
-                else if (stage === 12) message = pickRandom(dbNgambek.stage12).replace("{user}", userTag);
-                
-                await logCh.send(message);
-            }
-        }
-        if (stage === 1) setInactivityWarning(member, guildId, 2);
-        else if (stage === 2) setInactivityWarning(member, guildId, 3);
-        else if (stage === 3) setInactivityWarning(member, guildId, 12);
-    }, delay);
+// --- LOGIKA PENGINGAT VC (TIAP JAM) ---
 
-    userTrackers.set(member.id, { timer, stage });
+async function checkInactivity() {
+    const guilds = [S1_GUILD, S2_GUILD].filter(id => id);
+    
+    for (const guildId of guilds) {
+        try {
+            const guild = await client.guilds.fetch(guildId).catch(() => null);
+            if (!guild) continue;
+
+            const targetChId = (guildId === S1_GUILD) ? S1_CHAT : S2_CHAT;
+            const logCh = await client.channels.fetch(targetChId).catch(() => null);
+            if (!logCh) continue;
+
+            const members = await guild.members.fetch();
+            // Ambil member yang online tapi TIDAK sedang di Voice Channel
+            const inactiveMembers = members.filter(m => !m.user.bot && !m.voice.channelId && m.presence?.status !== 'offline');
+
+            if (inactiveMembers.size > 0) {
+                const target = inactiveMembers.random(); // Ambil 1 orang random biar gak spam parah
+                const msg = pickRandom(dbTagVC).replace("{user}", target.toString());
+                await logCh.send(msg);
+            }
+        } catch (e) {
+            console.error("Error in checkInactivity:", e);
+        }
+    }
 }
 
 // --- EVENT READY ---
 
 client.once('ready', () => {
-    console.log(`Bot Ayank ${client.user.tag} Online!`);
-    client.user.setActivity('jagain janda & perawan 🥺', { type: ActivityType.Watching });
+    console.log(`Bot ${client.user.tag} siap menjaga server!`);
+    client.user.setActivity('Nungguin kalian di VC 🎧', { type: ActivityType.Listening });
 
+    // Broadcast Quote tiap 2 jam
     setInterval(() => broadcast(pickRandom(dbQuotes)), 2 * 3600000);
 
+    // Cek Inactivity tiap 1 jam
+    setInterval(() => checkInactivity(), 1 * 3600000);
+
+    // Cek Jadwal Sholat & Makan tiap menit
     setInterval(async () => {
         const now = nowWIB();
         const h = now.getHours();
         const m = now.getMinutes();
 
+        // Jadwal Makan
         if (h === 7 && m === 30) await broadcast(pickRandom(dbMakan.pagi));
         if (h === 12 && m === 30) await broadcast(pickRandom(dbMakan.siang));
-        if (h === 19 && m === 15) await broadcast(pickRandom(dbMakan.malam));
+        if (h === 19 && m === 0) await broadcast(pickRandom(dbMakan.malam));
 
-        const jadwalSholat = { "Subuh": [4, 35], "Dzuhur": [12, 5], "Ashar": [15, 25], "Maghrib": [18, 5], "Isya": [19, 20] };
+        // Jadwal Sholat (WIB - Estimasi)
+        const jadwalSholat = { 
+            "Subuh": [4, 40], 
+            "Dzuhur": [12, 0], 
+            "Ashar": [15, 20], 
+            "Maghrib": [18, 5], 
+            "Isya": [19, 15] 
+        };
+
         for (const [nama, waktu] of Object.entries(jadwalSholat)) {
             if (h === waktu[0] && m === waktu[1]) {
-                const msg = pickRandom(dbSholat).replace("{nama}", nama);
-                await broadcast(msg);
+                await broadcast(dbSholat.replace("{nama}", nama));
             }
         }
     }, 60000);
 });
 
-// --- COMMAND !JOIN & !LEAVE ---
+// --- COMMANDS ---
 
 client.on('messageCreate', async (msg) => {
-    if (msg.author.bot) return;
+    if (msg.author.bot || !msg.guild) return;
 
     if (msg.content === '!join') {
         const voiceChannel = msg.member.voice.channel;
         if (voiceChannel) {
             try {
-                const connection = joinVoiceChannel({
+                joinVoiceChannel({
                     channelId: voiceChannel.id,
                     guildId: voiceChannel.guild.id,
                     adapterCreator: voiceChannel.guild.voiceAdapterCreator,
                     selfDeaf: false,
                     selfMute: true,
                 });
-
-                connection.on(VoiceConnectionStatus.Ready, () => {
-                    msg.reply(`🥺 Yay! Aku udah masuk di VOICE **${voiceChannel.name}**~ Nemenin kalian janda, duda, & perjaka elit ya!`);
-                });
+                msg.reply(`✅ Siap! Aku sudah stand-by di VC **${voiceChannel.name}** ya.`);
             } catch (err) {
-                msg.reply('😩 Aduh sayang, aku gagal join VOICE-nya. Cek permission aku dong!');
+                msg.reply('❌ Gagal masuk ke VC. Cek permission aku ya!');
             }
         } else {
-            msg.reply('😤 Kamu masuk VOICE dulu dong baru panggil aku! Masa aku sendirian di sana? 🥺');
+            msg.reply('Masuk ke VC dulu yuk, nanti aku susul! 😉');
         }
     }
 
@@ -189,26 +163,10 @@ client.on('messageCreate', async (msg) => {
         const connection = getVoiceConnection(msg.guild.id);
         if (connection) {
             connection.destroy();
-            msg.reply('😔 Aku pamit dari VOICE dulu ya, jangan lupain aku... 💙');
+            msg.reply('👋 Aku pamit dulu ya, sampai ketemu lagi di VC!');
         } else {
-            msg.reply('Aku lagi nggak di VOICE kok sayang, kangen ya? 🥺');
+            msg.reply('Aku lagi nggak di VC kok.');
         }
-    }
-});
-
-// --- TRACKER VOICE STATE ---
-
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    const member = newState.member;
-    if (!member || member.user.bot) return;
-
-    if (!oldState.channelId && newState.channelId) {
-        if (userTrackers.has(member.id)) {
-            clearTimeout(userTrackers.get(member.id).timer);
-            userTrackers.delete(member.id);
-        }
-    } else if (oldState.channelId && !newState.channelId) {
-        setInactivityWarning(member, oldState.guild.id, 1);
     }
 });
 
