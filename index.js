@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
-const { joinVoiceChannel, VoiceConnectionStatus, getVoiceConnection } = require('@discordjs/voice');
+const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 
 const client = new Client({
     intents: [
@@ -8,6 +8,7 @@ const client = new Client({
         GatewayIntentBits.GuildMessages, 
         GatewayIntentBits.MessageContent, 
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences, 
     ],
 });
 
@@ -17,15 +18,21 @@ const S1_CHAT = process.env.S1_CHAT_ID;
 const S2_GUILD = process.env.S2_GUILD_ID;
 const S2_CHAT = process.env.S2_CHAT_ID;
 
-// --- DATABASE PESAN (BAHASA LEBIH OKE) ---
+let lastMessages = {
+    quote: {},
+    makan: {},
+    sholat: {},
+    tagVC: {}
+};
+
+// --- DATABASE PESAN ---
 
 const dbQuotes = [
     "📢 Yuk, ramaikan Voice Channel! Ngobrol santai bareng yang lain di sini. ✨",
     "🔥 Room Voice lagi sepi nih, masuk yuk biar makin seru hari kita! 🥂",
     "💬 Daripada ngetik terus, mending Open Mic di VC. Lebih dapet feel-nya!",
     "🎵 Ada yang mau dengerin musik bareng di VC? Sini merapat!",
-    "🌟 Kebersamaan itu mahal harganya, yuk luangkan waktu di Voice Channel sebentar.",
-    "☕ Kopi sudah siap, tinggal nunggu kalian naik ke VC nih buat nemenin ngobrol."
+    "🌟 Kebersamaan itu mahal harganya, yuk luangkan waktu di Voice Channel sebentar."
 ];
 
 const dbMakan = {
@@ -34,12 +41,12 @@ const dbMakan = {
     malam: ["🍝 Selamat malam! Waktunya makan malam dan santai sejenak setelah seharian sibuk."]
 };
 
-const dbSholat = "🕌 **Waktunya Sholat {nama}!** Mari kita tunaikan kewajiban terlebih dahulu, istirahat sejenak dari aktivitas ya. 🙏";
+const dbSholat = "🕌 **Waktunya Sholat {nama}!** Mari kita tunaikan kewajiban terlebih dahulu. 🙏";
 
 const dbTagVC = [
     "🥺 {user}, kok belum kelihatan di VC? Yuk gabung bareng kita!",
     "🧐 {user}, mumpung rame nih, ditungguin temen-temen di Voice Channel ya!",
-    "📢 Panggilan untuk {user}, mampir ke VC bentar yuk, jangan absen terus..",
+    "📢 Panggilan untuk {user}, mampir ke VC bentar yuk..",
     "✨ {user}, harimu bakal lebih seru kalau gabung ngobrol di VC sekarang!"
 ];
 
@@ -55,107 +62,106 @@ function nowWIB() {
     return new Date(utc + 7 * 3600000);
 }
 
-async function broadcast(text) {
-    const ids = [S1_CHAT, S2_CHAT].filter(id => id);
-    for (const id of ids) {
+async function smartSend(type, text) {
+    const channelIds = [S1_CHAT, S2_CHAT].filter(id => id);
+    for (const chId of channelIds) {
         try {
-            const ch = await client.channels.fetch(id).catch(() => null);
-            if (ch) await ch.send(text);
+            const channel = await client.channels.fetch(chId).catch(() => null);
+            if (!channel) continue;
+
+            if (lastMessages[type][chId]) {
+                const oldMsg = await channel.messages.fetch(lastMessages[type][chId]).catch(() => null);
+                if (oldMsg) await oldMsg.delete().catch(() => null);
+            }
+
+            const newMsg = await channel.send(text);
+            lastMessages[type][chId] = newMsg.id;
         } catch (e) {}
     }
 }
 
-// --- LOGIKA PENGINGAT VC (TIAP JAM) ---
-
 async function checkInactivity() {
     const guilds = [S1_GUILD, S2_GUILD].filter(id => id);
-    
     for (const guildId of guilds) {
         try {
             const guild = await client.guilds.fetch(guildId).catch(() => null);
             if (!guild) continue;
 
-            const targetChId = (guildId === S1_GUILD) ? S1_CHAT : S2_CHAT;
-            const logCh = await client.channels.fetch(targetChId).catch(() => null);
-            if (!logCh) continue;
-
             const members = await guild.members.fetch();
-            // Ambil member yang online tapi TIDAK sedang di Voice Channel
-            const inactiveMembers = members.filter(m => !m.user.bot && !m.voice.channelId && m.presence?.status !== 'offline');
+            const targets = members.filter(m => 
+                !m.user.bot && 
+                !m.voice.channelId && 
+                m.presence?.status && m.presence?.status !== 'offline'
+            );
 
-            if (inactiveMembers.size > 0) {
-                const target = inactiveMembers.random(); // Ambil 1 orang random biar gak spam parah
-                const msg = pickRandom(dbTagVC).replace("{user}", target.toString());
-                await logCh.send(msg);
+            if (targets.size > 0) {
+                const userTarget = targets.random();
+                await smartSend('tagVC', pickRandom(dbTagVC).replace("{user}", userTarget.toString()));
             }
-        } catch (e) {
-            console.error("Error in checkInactivity:", e);
-        }
+        } catch (e) {}
     }
 }
 
 // --- EVENT READY ---
 
 client.once('ready', () => {
-    console.log(`Bot ${client.user.tag} siap menjaga server!`);
-    client.user.setActivity('Nungguin kalian di VC 🎧', { type: ActivityType.Listening });
+    console.log(`Bot ${client.user.tag} Online!`);
+    client.user.setActivity('Z3 Studios 🎧', { type: ActivityType.Watching });
 
-    // Broadcast Quote tiap 2 jam
-    setInterval(() => broadcast(pickRandom(dbQuotes)), 2 * 3600000);
-
-    // Cek Inactivity tiap 1 jam
+    setInterval(() => smartSend('quote', pickRandom(dbQuotes)), 2 * 3600000);
     setInterval(() => checkInactivity(), 1 * 3600000);
 
-    // Cek Jadwal Sholat & Makan tiap menit
     setInterval(async () => {
         const now = nowWIB();
         const h = now.getHours();
         const m = now.getMinutes();
 
-        // Jadwal Makan
-        if (h === 7 && m === 30) await broadcast(pickRandom(dbMakan.pagi));
-        if (h === 12 && m === 30) await broadcast(pickRandom(dbMakan.siang));
-        if (h === 19 && m === 0) await broadcast(pickRandom(dbMakan.malam));
+        if (h === 7 && m === 30) await smartSend('makan', pickRandom(dbMakan.pagi));
+        if (h === 12 && m === 30) await smartSend('makan', pickRandom(dbMakan.siang));
+        if (h === 19 && m === 0) await smartSend('makan', pickRandom(dbMakan.malam));
 
-        // Jadwal Sholat (WIB - Estimasi)
         const jadwalSholat = { 
-            "Subuh": [4, 40], 
-            "Dzuhur": [12, 0], 
-            "Ashar": [15, 20], 
-            "Maghrib": [18, 5], 
-            "Isya": [19, 15] 
+            "Subuh": [4, 40], "Dzuhur": [12, 0], "Ashar": [15, 20], "Maghrib": [18, 5], "Isya": [19, 15] 
         };
 
         for (const [nama, waktu] of Object.entries(jadwalSholat)) {
             if (h === waktu[0] && m === waktu[1]) {
-                await broadcast(dbSholat.replace("{nama}", nama));
+                await smartSend('sholat', dbSholat.replace("{nama}", nama));
             }
         }
     }, 60000);
 });
 
-// --- COMMANDS ---
+// --- COMMANDS (FIXED DOUBLE RESPONSE) ---
 
 client.on('messageCreate', async (msg) => {
+    // Abaikan jika bot atau bukan di guild
     if (msg.author.bot || !msg.guild) return;
 
     if (msg.content === '!join') {
         const voiceChannel = msg.member.voice.channel;
         if (voiceChannel) {
+            // Cek apakah sudah ada koneksi di guild ini
+            const existingConnection = getVoiceConnection(msg.guild.id);
+            if (existingConnection) {
+                return msg.reply('Aku sudah ada di dalam VC kok! 😉');
+            }
+
             try {
                 joinVoiceChannel({
                     channelId: voiceChannel.id,
                     guildId: voiceChannel.guild.id,
                     adapterCreator: voiceChannel.guild.voiceAdapterCreator,
                     selfDeaf: false,
-                    selfMute: true,
+                    selfMute: true
                 });
-                msg.reply(`✅ Siap! Aku sudah stand-by di VC **${voiceChannel.name}** ya.`);
+                // Gunakan return agar berhenti di sini
+                return msg.channel.send(`✅ Siap! Aku sudah stand-by di VC **${voiceChannel.name}** ya.`);
             } catch (err) {
-                msg.reply('❌ Gagal masuk ke VC. Cek permission aku ya!');
+                return msg.reply('❌ Gagal masuk VC.');
             }
         } else {
-            msg.reply('Masuk ke VC dulu yuk, nanti aku susul! 😉');
+            return msg.reply('Masuk VC dulu Bos!');
         }
     }
 
@@ -163,9 +169,7 @@ client.on('messageCreate', async (msg) => {
         const connection = getVoiceConnection(msg.guild.id);
         if (connection) {
             connection.destroy();
-            msg.reply('👋 Aku pamit dulu ya, sampai ketemu lagi di VC!');
-        } else {
-            msg.reply('Aku lagi nggak di VC kok.');
+            return msg.channel.send('👋 Pamit dulu, jangan lupa panggil lagi ya!');
         }
     }
 });
